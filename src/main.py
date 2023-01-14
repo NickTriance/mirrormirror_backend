@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import webcolors
 import colorsys
 import cv2
@@ -38,32 +39,46 @@ def get_eye_color(_eyes, _img):
 		hsv = cv2.cvtColor(_iris, cv2.COLOR_BGR2HSV)
 
 		#calculate histogram for iris color
-		hist = cv2.calcHist([hsv],[0], None, [180], [0,180])
-		hist = cv2.normalize(hist, hist, 0, 255, cv2.NORM_MINMAX)
+		h = cv2.calcHist([hsv],[0], None, [180], [0,180])
+		s = cv2.calcHist([hsv],[1], None, [180], [0,180])
+		v = cv2.calcHist([hsv],[2], None, [180], [0,180])
+		h = cv2.normalize(h, h, 0, 255, cv2.NORM_MINMAX)
+		s = cv2.normalize(s, s, 0, 255, cv2.NORM_MINMAX)
+		v = cv2.normalize(v, v, 0, 255, cv2.NORM_MINMAX)
 
-		_col = np.argmax(hist)
-		print(f"Eye color: {_col}")
+		h = np.argmax(h)
+		s = np.argmax(s)
+		v = np.argmax(v)
+		_col = (h,s,v)
+		#_col = np.argmax(hist)
+		print(f"Eye color (HSV): {_col}")
 		return _col
+
+def hsv_to_rgb(h, s, v):
+	(r,g,b) = colorsys.hsv_to_rgb(h,s,v)
+
+
 
 #takes in HSV color code, and returns the closest HTML color name.
 def name_eye_color(_col):
 
 	#convert HSV color, assuming 100% saturation and value.
-	_rgb = colorsys.hsv_to_rgb(_col, 1.0, 1.0)
+	_rgb = hsv_to_rgb(_col[0], _col[1], _col[2])
+	print(f"Eye color (RGB): {_rgb}")
 
 	#predefined dictionary for eye colors
 	colors = {
 		#TODO: fill in the rgb values for colors
-		"brown" : (0,0,0),
-		"blue" : (0,0,0),
-		"green" : (0,0,0),
-		"hazel" : (0,0,0),
-		"gray" : (0,0,0)
+		"brown" : (94, 49, 34),
+		"blue" : (69, 96, 139),
+		"green" : (129, 121, 31),
+		"hazel" : (131, 122, 91),
+		"gray" : (146, 146, 146)
 	}
 	min_distance = float("inf")
 	closest_color = None
 	for color, value in colors.items():
-		distance = sum([(i - j) ** 2 for i, j in zip(_rgb, value)])
+		distance = math.sqrt(((_rgb[0] + value[0]) ** 2) + ((_rgb[1] + value[1]) ** 2) + ((_rgb[2] + value[2]) ** 2))
 		if distance < min_distance:
 			min_distance = distance
 			closest_color = color
@@ -95,10 +110,12 @@ while True:
 		eyes_gray = grayscale[y:y+h, x:x+w]
 	eyes = detect_eyes(eyes_gray)
 	col = get_eye_color(eyes, _clone)
-	col_name = name_eye_color(col)
-	print(col_name)
+	if col is not None:
+		col_name = name_eye_color(col)
+		print(col_name)
 
 	img = draw_rects(img, face, eyes)
+	text = "Face not detected"
 
 	##cam.read returns a success boolean and the image.
 	#_, img = cam.read()
